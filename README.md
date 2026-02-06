@@ -18,14 +18,9 @@ Web-based monitoring tool for Etopoo digital dial gauges using Web Serial API.
 3. Click "Connect to Serial Port"
 
 ## Browser Requirements
-- Chrome/Edge desktop (Web Serial API support)
+- Chrome/Edge desktop (Web Serial API support.)
 - HTTPS required (or localhost for testing)
-
-## Protocol Documentation
-See [Protocol Documentation](docs/protocol.md) for serial communication details.
-
-## Alternative Backend Approach
-See `python-backend/` for Flask-based server approach (for remote monitoring).
+- Most likely will not work on A-star laptop due to restrictions
 
 ```
 
