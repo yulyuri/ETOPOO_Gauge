@@ -1,0 +1,1134 @@
+<!-- Claude UI 
+-Should have minimally same features as provided UI
+-button press
+-manual capture
+-upper and lower tolerance 
+-logging of continuous and important captures***
+ 
+TO DO
+- fix problem of disconnection, gauge side doesnt release connection
+- read through claude code, make sure its same backend as python code
+-->
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gauge Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .connection-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        .connection-header {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .connection-controls {
+            display: grid;
+            grid-template-columns: 200px auto;
+            gap: 15px;
+            align-items: center;
+        }
+        select, input {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        input[type="number"] {
+            width: 100%;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .status-indicator.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-indicator.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-indicator.checking {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        .gauge-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .gauge-card.visible {
+            display: block;
+        }
+        .gauge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .gauge-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .gauge-status {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .reading-section {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .value-display-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .value-display {
+            text-align: center;
+            font-size: 5em;
+            font-weight: bold;
+            color: #1e293b;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+            transition: all 0.3s;
+        }
+        .value-display.pass {
+            color: #10b981;
+        }
+        .value-display.fail {
+            color: #ef4444;
+        }
+        .value-unit {
+            font-size: 0.35em;
+            color: #64748b;
+        }
+        .button-flash {
+            animation: flash 0.3s;
+        }
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .status-badge {
+            text-align: center;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .status-badge.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-badge.neutral {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        
+        .tolerance-section {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .tolerance-header {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #475569;
+            margin-bottom: 15px;
+        }
+        .tolerance-inputs {
+            display: grid;
+            gap: 12px;
+        }
+        .tolerance-input-group {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            align-items: center;
+            gap: 10px;
+        }
+        .tolerance-label {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 0.95em;
+        }
+        .tolerance-input {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        .tolerance-bar {
+            width: 100%;
+            height: 30px;
+            background: linear-gradient(to right, 
+                #fee2e2 0%, 
+                #fee2e2 20%, 
+                #d1fae5 20%, 
+                #d1fae5 80%, 
+                #fee2e2 80%, 
+                #fee2e2 100%);
+            border-radius: 5px;
+            margin-top: 15px;
+            position: relative;
+        }
+        .tolerance-marker {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: #1e293b;
+            top: 0;
+        }
+        .tolerance-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        .stat {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat.ng-stat {
+            background: #fee2e2;
+        }
+        .stat.pass-stat {
+            background: #d1fae5;
+        }
+        .stat-label {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        .stat.ng-stat .stat-value {
+            color: #991b1b;
+        }
+        .stat.pass-stat .stat-value {
+            color: #065f46;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+        }
+        button {
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        .btn-secondary {
+            background: #8b5cf6;
+            color: white;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        .btn-large {
+            font-size: 1.3em;
+        }
+        
+        .data-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .data-log {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: none;
+        }
+        .data-log.visible {
+            display: block;
+        }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .log-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .log-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .filename-input {
+            padding: 8px;
+            border-radius: 5px;
+            border: 2px solid #e2e8f0;
+            width: 150px;
+            font-size: 0.9em;
+        }
+        .log-table {
+            width: 100%;
+            max-height: 400px;
+            overflow-y: auto;
+            display: block;
+        }
+        .log-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .log-table thead {
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+        }
+        .log-table th, .log-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .log-table th {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.9em;
+        }
+        .log-table tr:hover {
+            background: #f8fafc;
+        }
+        .log-table tr.pass-row {
+            background: #f0fdf4;
+        }
+        .log-table tr.fail-row {
+            background: #fef2f2;
+        }
+        .type-button {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        .type-manual {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .err-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .err-badge.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .err-badge.plus {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .err-badge.minus {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .warning-box {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .warning-box.visible {
+            display: block;
+        }
+        .warning-title {
+            font-weight: bold;
+            color: #92400e;
+            margin-bottom: 10px;
+        }
+        .warning-text {
+            color: #92400e;
+        }
+        
+        @media (max-width: 1024px) {
+            .reading-section {
+                grid-template-columns: 1fr;
+            }
+            .data-section {
+                grid-template-columns: 1fr;
+            }
+            .controls {
+                grid-template-columns: 1fr 1fr;
+            }
+            .connection-controls {
+                grid-template-columns: 1fr;
+            }
+            .export-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filename-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gauge Monitor</h1>
+        
+        <div class="warning-box" id="warningBox">
+            <div class="warning-title">⚠️ Browser Compatibility</div>
+            <div class="warning-text">
+                This application requires the Web Serial API, which is supported in:
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>Chrome/Edge (desktop only)</li>
+                    <li>Opera (desktop only)</li>
+                </ul>
+                Safari and Firefox do not currently support Web Serial API.
+            </div>
+        </div>
+        
+        <div class="connection-card">
+            <div class="connection-header">Connection</div>
+            <div class="connection-controls">
+                <button class="btn-primary" id="connectBtn" onclick="toggleConnection()">Connect to Serial Port</button>
+                <div class="status-indicator disconnected" id="status">
+                    <div class="status-dot"></div>
+                    <span>Disconnected</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gauge-card" id="gaugeCard">
+            <div class="gauge-header">
+                <div class="gauge-title">Digital Indicator</div>
+                <div class="gauge-status"></div>
+            </div>
+            
+            <div class="reading-section">
+                <div class="value-display-container">
+                    <div class="value-display neutral" id="value">---<span class="value-unit">mm</span></div>
+                    <div class="status-badge neutral" id="statusBadge">Waiting...</div>
+                </div>
+                
+                <div class="tolerance-section">
+                    <div class="tolerance-header">Tolerance Settings</div>
+                    <div class="tolerance-inputs">
+                        <div class="tolerance-input-group">
+                            <label class="tolerance-label">USL:</label>
+                            <input type="number" step="0.001" class="tolerance-input" id="uslInput" 
+                                   placeholder="Upper limit" onchange="updateTolerance()">
+                        </div>
+                        <div class="tolerance-input-group">
+                            <label class="tolerance-label">STD:</label>
+                            <input type="number" step="0.001" class="tolerance-input" id="stdInput" 
+                                   placeholder="Standard" onchange="updateTolerance()">
+                        </div>
+                        <div class="tolerance-input-group">
+                            <label class="tolerance-label">LSL:</label>
+                            <input type="number" step="0.001" class="tolerance-input" id="lslInput" 
+                                   placeholder="Lower limit" onchange="updateTolerance()">
+                        </div>
+                    </div>
+                    <div class="tolerance-bar" id="toleranceBar"></div>
+                    <div class="tolerance-labels">
+                        <span id="lslLabel">LSL</span>
+                        <span id="stdLabel">STD</span>
+                        <span id="uslLabel">USL</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-label">Minimum</div>
+                    <div class="stat-value" id="min">---</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Maximum</div>
+                    <div class="stat-value" id="max">---</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Average</div>
+                    <div class="stat-value" id="avg">---</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Range</div>
+                    <div class="stat-value" id="range">---</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-value" id="count">0</div>
+                </div>
+                <div class="stat" style="background: #dbeafe;">
+                    <div class="stat-label">Button Presses</div>
+                    <div class="stat-value" id="buttonCount" style="color: #1e40af;">0</div>
+                </div>
+                <div class="stat pass-stat">
+                    <div class="stat-label">Pass</div>
+                    <div class="stat-value" id="passCount">0</div>
+                </div>
+                <div class="stat ng-stat">
+                    <div class="stat-label">+NG</div>
+                    <div class="stat-value" id="ngPlus">0</div>
+                </div>
+                <div class="stat ng-stat">
+                    <div class="stat-label">-NG</div>
+                    <div class="stat-value" id="ngMinus">0</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn-primary" onclick="zero()">Zero Gauge</button>
+                <button class="btn-success btn-large" onclick="capture()">Capture</button>
+                <button class="btn-warning" onclick="resetStats()">Reset Stats</button>
+                <button class="btn-secondary" onclick="exportImportant()">Export Important</button>
+            </div>
+        </div>
+        
+        <div class="data-section">
+            <div class="data-log" id="importantLog">
+                <div class="log-header">
+                    <div class="log-title">Important Captures</div>
+                    <div class="export-controls">
+                        <span class="log-badge" id="importantCount">0</span>
+                        <input type="text" id="importantFilename" class="filename-input" placeholder="filename (optional)">
+                        <button class="btn-secondary btn-small" onclick="exportImportant()">Export</button>
+                    </div>
+                </div>
+                <div class="log-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Time</th>
+                                <th>Value (mm)</th>
+                                <th>Err</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="importantLogBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="data-log" id="continuousLog">
+                <div class="log-header">
+                    <div class="log-title">Continuous Log</div>
+                    <div class="export-controls">
+                        <input type="text" id="continuousFilename" class="filename-input" placeholder="filename (optional)">
+                        <button class="btn-secondary btn-small" onclick="exportContinuous()">Export All</button>
+                    </div>
+                </div>
+                <div class="log-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Value (mm)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="continuousLogBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global state
+        let port = null;
+        let reader = null;
+        let isConnected = false;
+        let buffer = new Uint8Array();
+        let gaugeData = {
+            currentValue: 0.0,
+            offset: 0.0,
+            rawValue: 0.0,
+            min: null,
+            max: null,
+            count: 0,
+            buttonCount: 0,
+            ngPlus: 0,
+            ngMinus: 0,
+            passCount: 0,
+            sum: 0.0
+        };
+        let tolerance = {usl: null, lsl: null, std: null};
+        let importantData = [];
+        let continuousData = [];
+        
+        // Check browser support
+        window.onload = () => {
+            if (!('serial' in navigator)) {
+                document.getElementById('warningBox').classList.add('visible');
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('connectBtn').textContent = 'Browser Not Supported';
+            }
+        };
+        
+        async function toggleConnection() {
+            if (!isConnected) {
+                await connect();
+            } else {
+                await disconnect();
+            }
+        }
+        
+        async function connect() {
+            try {
+                setStatus('checking', 'Requesting port...');
+                
+                // Request port with 9600 baud filter
+                port = await navigator.serial.requestPort();
+                
+                // Open port with 9600 baud, 8N1
+                await port.open({ 
+                    baudRate: 9600,
+                    dataBits: 8,
+                    parity: 'none',
+                    stopBits: 1,
+                    flowControl: 'none'
+                });
+                
+                isConnected = true;
+                setStatus('connected', 'Connected');
+                document.getElementById('connectBtn').textContent = 'Disconnect';
+                document.getElementById('connectBtn').classList.remove('btn-primary');
+                document.getElementById('connectBtn').classList.add('btn-danger');
+                document.getElementById('gaugeCard').classList.add('visible');
+                document.getElementById('importantLog').classList.add('visible');
+                document.getElementById('continuousLog').classList.add('visible');
+                
+                // Start reading
+                readLoop();
+                
+            } catch (err) {
+                console.error('Connection error:', err);
+                setStatus('disconnected', 'Connection Failed');
+                alert('Failed to connect: ' + err.message);
+            }
+        }
+        
+        async function disconnect() {
+            isConnected = false;
+            
+            if (reader) {
+                try {
+                    await reader.cancel();
+                } catch (err) {
+                    console.error('Reader cancel error:', err);
+                }
+                reader = null;
+            }
+            
+            if (port) {
+                try {
+                    await port.close();
+                } catch (err) {
+                    console.error('Port close error:', err);
+                }
+                port = null;
+            }
+            
+            setStatus('disconnected', 'Disconnected');
+            document.getElementById('connectBtn').textContent = 'Connect to Serial Port';
+            document.getElementById('connectBtn').classList.remove('btn-danger');
+            document.getElementById('connectBtn').classList.add('btn-primary');
+            document.getElementById('gaugeCard').classList.remove('visible');
+            document.getElementById('importantLog').classList.remove('visible');
+            document.getElementById('continuousLog').classList.remove('visible');
+        }
+        
+        async function readLoop() {
+            buffer = new Uint8Array();
+            
+            try {
+                reader = port.readable.getReader();
+                
+                while (isConnected) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    // Append to buffer
+                    const newBuffer = new Uint8Array(buffer.length + value.length);
+                    newBuffer.set(buffer);
+                    newBuffer.set(value, buffer.length);
+                    buffer = newBuffer;
+                    
+                    // Process packets
+                    processBuffer();
+                }
+            } catch (err) {
+                console.error('Read error:', err);
+                if (isConnected) {
+                    alert('Serial read error: ' + err.message);
+                    await disconnect();
+                }
+            } finally {
+                if (reader) {
+                    reader.releaseLock();
+                }
+            }
+        }
+        
+        function processBuffer() {
+            while (buffer.length >= 11) {
+                // Check for valid packet: 0x12, +/-, 0x00, ..., 0x0D
+                if (buffer[0] === 0x12 && 
+                    (buffer[1] === 0x2B || buffer[1] === 0x2D) &&  // '+' or '-'
+                    buffer[2] === 0x00 &&
+                    buffer[9] === 0x0D) {
+                    
+                    const packet = buffer.slice(0, 11);
+                    buffer = buffer.slice(11);
+                    
+                    parsePacket(packet);
+                } else {
+                    // Invalid start, shift by 1
+                    buffer = buffer.slice(1);
+                }
+            }
+        }
+        
+        function parsePacket(packet) {
+            const sign = String.fromCharCode(packet[1]);
+            const digits = Array.from(packet.slice(3, 9))
+                .filter(b => b >= 48 && b <= 57)  // Filter digits 0-9
+                .map(b => String.fromCharCode(b))
+                .join('');
+            
+            if (digits.length !== 6) return;
+            
+            let rawValue = parseInt(digits) / 1000;
+            if (sign === '-') {
+                rawValue = -rawValue;
+            }
+            
+            gaugeData.rawValue = rawValue;
+            const zeroedValue = rawValue - gaugeData.offset;
+            gaugeData.currentValue = zeroedValue;
+            
+            // Update stats
+            gaugeData.count++;
+            gaugeData.sum += zeroedValue;
+            
+            if (gaugeData.min === null || zeroedValue < gaugeData.min) {
+                gaugeData.min = zeroedValue;
+            }
+            if (gaugeData.max === null || zeroedValue > gaugeData.max) {
+                gaugeData.max = zeroedValue;
+            }
+            
+            // Check tolerance
+            const status = checkTolerance(zeroedValue);
+            if (status === 'over') {
+                gaugeData.ngPlus++;
+            } else if (status === 'under') {
+                gaugeData.ngMinus++;
+            } else if (status === 'pass') {
+                gaugeData.passCount++;
+            }
+            
+            // Check button press (0x0A in byte 10)
+            const isButton = (packet[10] === 0x0A);
+            if (isButton) {
+                gaugeData.buttonCount++;
+            }
+            
+            // Update display
+            updateDisplay(zeroedValue, status, isButton);
+            
+            // Log data
+            const timestamp = new Date().toLocaleTimeString('en-GB', {hour12: false}) + '.' + 
+                              String(new Date().getMilliseconds()).padStart(3, '0');
+            
+            addToContinuousLog(timestamp, zeroedValue, status);
+            
+            if (isButton) {
+                addToImportantLog(timestamp, zeroedValue, 'Button', status);
+            }
+        }
+        
+        function updateDisplay(value, status, isButton) {
+            const valueEl = document.getElementById('value');
+            const statusBadge = document.getElementById('statusBadge');
+            
+            valueEl.innerHTML = value.toFixed(3) + '<span class="value-unit">mm</span>';
+            
+            // Update status
+            valueEl.className = 'value-display';
+            statusBadge.className = 'status-badge';
+            
+            if (status === 'pass') {
+                valueEl.classList.add('pass');
+                statusBadge.classList.add('pass');
+                statusBadge.textContent = 'PASS';
+            } else if (status === 'over') {
+                valueEl.classList.add('fail');
+                statusBadge.classList.add('fail');
+                statusBadge.textContent = 'FAIL (+NG)';
+            } else if (status === 'under') {
+                valueEl.classList.add('fail');
+                statusBadge.classList.add('fail');
+                statusBadge.textContent = 'FAIL (-NG)';
+            } else {
+                valueEl.classList.add('neutral');
+                statusBadge.classList.add('neutral');
+                statusBadge.textContent = 'No Tolerance Set';
+            }
+            
+            if (isButton) {
+                valueEl.classList.add('button-flash');
+                setTimeout(() => valueEl.classList.remove('button-flash'), 300);
+            }
+            
+            // Update tolerance marker
+            if (tolerance.usl !== null && tolerance.lsl !== null) {
+                const range = tolerance.usl - tolerance.lsl;
+                const position = ((value - tolerance.lsl) / range) * 100;
+                let marker = document.querySelector('.tolerance-marker');
+                if (!marker) {
+                    marker = document.createElement('div');
+                    marker.className = 'tolerance-marker';
+                    document.getElementById('toleranceBar').appendChild(marker);
+                }
+                marker.style.left = Math.max(0, Math.min(100, position)) + '%';
+            }
+            
+            // Update stats
+            document.getElementById('count').textContent = gaugeData.count;
+            document.getElementById('buttonCount').textContent = gaugeData.buttonCount;
+            document.getElementById('passCount').textContent = gaugeData.passCount;
+            document.getElementById('ngPlus').textContent = gaugeData.ngPlus;
+            document.getElementById('ngMinus').textContent = gaugeData.ngMinus;
+            
+            if (gaugeData.min !== null) {
+                document.getElementById('min').textContent = gaugeData.min.toFixed(3);
+            }
+            if (gaugeData.max !== null) {
+                document.getElementById('max').textContent = gaugeData.max.toFixed(3);
+            }
+            
+            const avg = gaugeData.count > 0 ? gaugeData.sum / gaugeData.count : null;
+            if (avg !== null) {
+                document.getElementById('avg').textContent = avg.toFixed(3);
+            }
+            
+            const range = (gaugeData.min !== null && gaugeData.max !== null) ? 
+                          (gaugeData.max - gaugeData.min) : null;
+            if (range !== null) {
+                document.getElementById('range').textContent = range.toFixed(3);
+            }
+        }
+        
+        function setStatus(type, text) {
+            const status = document.getElementById('status');
+            status.className = `status-indicator ${type}`;
+            status.querySelector('span').textContent = text;
+        }
+        
+        function updateTolerance() {
+            const usl = parseFloat(document.getElementById('uslInput').value);
+            const lsl = parseFloat(document.getElementById('lslInput').value);
+            const std = parseFloat(document.getElementById('stdInput').value);
+            
+            tolerance.usl = isNaN(usl) ? null : usl;
+            tolerance.lsl = isNaN(lsl) ? null : lsl;
+            tolerance.std = isNaN(std) ? null : std;
+            
+            document.getElementById('uslLabel').textContent = tolerance.usl !== null ? tolerance.usl.toFixed(3) : 'USL';
+            document.getElementById('lslLabel').textContent = tolerance.lsl !== null ? tolerance.lsl.toFixed(3) : 'LSL';
+            document.getElementById('stdLabel').textContent = tolerance.std !== null ? tolerance.std.toFixed(3) : 'STD';
+        }
+        
+        function checkTolerance(value) {
+            if (tolerance.usl !== null && value > tolerance.usl) return 'over';
+            if (tolerance.lsl !== null && value < tolerance.lsl) return 'under';
+            if (tolerance.usl !== null || tolerance.lsl !== null) return 'pass';
+            return 'none';
+        }
+        
+        function getErrBadge(status) {
+            if (status === 'over') return '<span class="err-badge plus">+Err</span>';
+            if (status === 'under') return '<span class="err-badge minus">-Err</span>';
+            if (status === 'pass') return '<span class="err-badge pass">Pass</span>';
+            return '';
+        }
+        
+        function addToImportantLog(time, value, type, status) {
+            const tbody = document.getElementById('importantLogBody');
+            const row = tbody.insertRow(0);
+            
+            const rowClass = status === 'pass' ? 'pass-row' : (status !== 'none' ? 'fail-row' : '');
+            row.className = rowClass;
+            
+            const typeClass = type === 'Button' ? 'type-button' : 'type-manual';
+            
+            const count = tbody.rows.length;
+            row.insertCell(0).textContent = count;
+            row.insertCell(1).textContent = time;
+            row.insertCell(2).textContent = value.toFixed(3);
+            row.insertCell(3).innerHTML = getErrBadge(status);
+            const typeCell = row.insertCell(4);
+            typeCell.textContent = type;
+            typeCell.className = typeClass;
+            
+            importantData.unshift({time, value, type, status});
+            document.getElementById('importantCount').textContent = importantData.length;
+        }
+        
+        function addToContinuousLog(time, value, status) {
+            const tbody = document.getElementById('continuousLogBody');
+            
+            if (tbody.rows.length > 100) {
+                tbody.deleteRow(100);
+            }
+            
+            const row = tbody.insertRow(0);
+            const rowClass = status === 'pass' ? 'pass-row' : (status !== 'none' ? 'fail-row' : '');
+            row.className = rowClass;
+            
+            row.insertCell(0).textContent = time;
+            row.insertCell(1).textContent = value.toFixed(3);
+            row.insertCell(2).innerHTML = getErrBadge(status);
+            
+            continuousData.push({time, value, status});
+        }
+        
+        function zero() {
+            gaugeData.offset = gaugeData.rawValue;
+            console.log('Zeroed at', gaugeData.offset.toFixed(3), 'mm');
+        }
+        
+        function capture() {
+            const timestamp = new Date().toLocaleTimeString('en-GB', {hour12: false}) + '.' + 
+                              String(new Date().getMilliseconds()).padStart(3, '0');
+            const value = gaugeData.currentValue;
+            const status = checkTolerance(value);
+            
+            addToImportantLog(timestamp, value, 'Manual', status);
+            console.log('Manual capture:', value.toFixed(3), 'mm', '[' + status + ']');
+        }
+        
+        function resetStats() {
+            if (confirm('Reset all statistics? This will not delete captured data.')) {
+                gaugeData.count = 0;
+                gaugeData.buttonCount = 0;
+                gaugeData.min = null;
+                gaugeData.max = null;
+                gaugeData.ngPlus = 0;
+                gaugeData.ngMinus = 0;
+                gaugeData.passCount = 0;
+                gaugeData.sum = 0.0;
+                
+                document.getElementById('count').textContent = '0';
+                document.getElementById('buttonCount').textContent = '0';
+                document.getElementById('passCount').textContent = '0';
+                document.getElementById('ngPlus').textContent = '0';
+                document.getElementById('ngMinus').textContent = '0';
+                document.getElementById('min').textContent = '---';
+                document.getElementById('max').textContent = '---';
+                document.getElementById('avg').textContent = '---';
+                document.getElementById('range').textContent = '---';
+                
+                console.log('Statistics reset');
+            }
+        }
+        
+        function exportImportant() {
+            let filename = document.getElementById('importantFilename').value.trim();
+            
+            if (!filename) {
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+                filename = `important_data_${timestamp}`;
+            }
+            
+            if (!filename.endsWith('.csv')) {
+                filename += '.csv';
+            }
+            
+            let csv = 'No.,Timestamp,Value (mm),Status,Type\n';
+            importantData.slice().reverse().forEach((row, idx) => {
+                let statusText = row.status;
+                if (statusText === 'over') statusText = '+Err';
+                else if (statusText === 'under') statusText = '-Err';
+                else if (statusText === 'pass') statusText = 'Pass';
+                else statusText = '';
+                
+                csv += `${idx + 1},${row.time},${row.value.toFixed(3)},${statusText},${row.type}\n`;
+            });
+            
+            downloadCSV(csv, filename);
+        }
+        
+        function exportContinuous() {
+            let filename = document.getElementById('continuousFilename').value.trim();
+            
+            if (!filename) {
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+                filename = `continuous_data_${timestamp}`;
+            }
+            
+            if (!filename.endsWith('.csv')) {
+                filename += '.csv';
+            }
+            
+            let csv = 'Timestamp,Value (mm),Status\n';
+            continuousData.forEach(row => {
+                let statusText = row.status;
+                if (statusText === 'over') statusText = '+Err';
+                else if (statusText === 'under') statusText = '-Err';
+                else if (statusText === 'pass') statusText = 'Pass';
+                else statusText = '';
+                
+                csv += `${row.time},${row.value.toFixed(3)},${statusText}\n`;
+            });
+            
+            downloadCSV(csv, filename);
+        }
+        
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
