@@ -1,0 +1,9 @@
+## Updated Port Map:
+
+:8080 - Nextcloud
+:8081 - Portfolio
+:8082 - cAdvisor 
+:8083 - Gauge Monitor 
+:9090 - Prometheus
+:3000 - Grafana
+:9101 - Bambu Exporter
