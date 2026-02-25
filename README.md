@@ -2,7 +2,7 @@
 
 Web-based monitoring tool for Etopoo digital dial gauges using Web Serial API.
 
-[Live Demo](https://gauge.tanscloud.space) 
+[Live Demo](https://gauge.tanscloud.space) | [Documentation][`Etopoo Digital Indicator doc.pdf`](./Etopoo%20Digital%20Indicator%20doc.pdf)
 
 ## Features
 - Real-time measurement display
