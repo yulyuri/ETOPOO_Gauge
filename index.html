@@ -8,9 +8,15 @@
 TO DO
 - fix problem of disconnection, gauge side doesnt release connection
 - read through claude code, make sure its same backend as python code
+
+
+1/3/26 update:
+Got rid of everything related to tolerance
+
+3/3/26 update:
+Simplified to proof-of-concept - removed tolerance checking, pass/fail, button counter, NG counters per boss feedback
+Keeping: basic stats (min/max/avg/total), zero, capture, logs, export
 -->
-
-
 
 <!DOCTYPE html>
 <html>
@@ -138,7 +144,7 @@ TO DO
         
         .reading-section {
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: 1fr;
             gap: 30px;
             margin-bottom: 30px;
         }
@@ -157,12 +163,7 @@ TO DO
             font-variant-numeric: tabular-nums;
             transition: all 0.3s;
         }
-        .value-display.pass {
-            color: #10b981;
-        }
-        .value-display.fail {
-            color: #ef4444;
-        }
+       
         .value-unit {
             font-size: 0.35em;
             color: #64748b;
@@ -174,88 +175,7 @@ TO DO
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
-        .status-badge {
-            text-align: center;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .status-badge.pass {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .status-badge.fail {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .status-badge.neutral {
-            background: #f1f5f9;
-            color: #475569;
-        }
-        
-        .tolerance-section {
-            background: #f8fafc;
-            padding: 20px;
-            border-radius: 10px;
-        }
-        .tolerance-header {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #475569;
-            margin-bottom: 15px;
-        }
-        .tolerance-inputs {
-            display: grid;
-            gap: 12px;
-        }
-        .tolerance-input-group {
-            display: grid;
-            grid-template-columns: 80px 1fr;
-            align-items: center;
-            gap: 10px;
-        }
-        .tolerance-label {
-            font-weight: 600;
-            color: #64748b;
-            font-size: 0.95em;
-        }
-        .tolerance-input {
-            padding: 10px;
-            border: 2px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1em;
-        }
-        .tolerance-bar {
-            width: 100%;
-            height: 30px;
-            background: linear-gradient(to right, 
-                #fee2e2 0%, 
-                #fee2e2 20%, 
-                #d1fae5 20%, 
-                #d1fae5 80%, 
-                #fee2e2 80%, 
-                #fee2e2 100%);
-            border-radius: 5px;
-            margin-top: 15px;
-            position: relative;
-        }
-        .tolerance-marker {
-            position: absolute;
-            width: 3px;
-            height: 100%;
-            background: #1e293b;
-            top: 0;
-        }
-        .tolerance-labels {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            font-size: 0.85em;
-            color: #64748b;
-        }
-        
+                
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -268,12 +188,7 @@ TO DO
             border-radius: 10px;
             text-align: center;
         }
-        .stat.ng-stat {
-            background: #fee2e2;
-        }
-        .stat.pass-stat {
-            background: #d1fae5;
-        }
+  
         .stat-label {
             font-size: 0.85em;
             color: #64748b;
@@ -285,13 +200,7 @@ TO DO
             font-weight: bold;
             color: #1e293b;
         }
-        .stat.ng-stat .stat-value {
-            color: #991b1b;
-        }
-        .stat.pass-stat .stat-value {
-            color: #065f46;
-        }
-        
+
         .controls {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -424,12 +333,7 @@ TO DO
         .log-table tr:hover {
             background: #f8fafc;
         }
-        .log-table tr.pass-row {
-            background: #f0fdf4;
-        }
-        .log-table tr.fail-row {
-            background: #fef2f2;
-        }
+
         .type-button {
             color: #ef4444;
             font-weight: bold;
@@ -438,24 +342,7 @@ TO DO
             color: #10b981;
             font-weight: bold;
         }
-        .err-badge {
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-        .err-badge.pass {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .err-badge.plus {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .err-badge.minus {
-            background: #fee2e2;
-            color: #991b1b;
-        }
+
         
         .warning-box {
             background: #fef3c7;
@@ -536,35 +423,10 @@ TO DO
             <div class="reading-section">
                 <div class="value-display-container">
                     <div class="value-display neutral" id="value">---<span class="value-unit">mm</span></div>
-                    <div class="status-badge neutral" id="statusBadge">Waiting...</div>
+                   
                 </div>
                 
-                <div class="tolerance-section">
-                    <div class="tolerance-header">Tolerance Settings</div>
-                    <div class="tolerance-inputs">
-                        <div class="tolerance-input-group">
-                            <label class="tolerance-label">USL:</label>
-                            <input type="number" step="0.001" class="tolerance-input" id="uslInput" 
-                                   placeholder="Upper limit" onchange="updateTolerance()">
-                        </div>
-                        <div class="tolerance-input-group">
-                            <label class="tolerance-label">STD:</label>
-                            <input type="number" step="0.001" class="tolerance-input" id="stdInput" 
-                                   placeholder="Standard" onchange="updateTolerance()">
-                        </div>
-                        <div class="tolerance-input-group">
-                            <label class="tolerance-label">LSL:</label>
-                            <input type="number" step="0.001" class="tolerance-input" id="lslInput" 
-                                   placeholder="Lower limit" onchange="updateTolerance()">
-                        </div>
-                    </div>
-                    <div class="tolerance-bar" id="toleranceBar"></div>
-                    <div class="tolerance-labels">
-                        <span id="lslLabel">LSL</span>
-                        <span id="stdLabel">STD</span>
-                        <span id="uslLabel">USL</span>
-                    </div>
-                </div>
+               
             </div>
             
             <div class="stats-grid">
@@ -580,30 +442,12 @@ TO DO
                     <div class="stat-label">Average</div>
                     <div class="stat-value" id="avg">---</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Range</div>
-                    <div class="stat-value" id="range">---</div>
-                </div>
+              
                 <div class="stat">
                     <div class="stat-label">Total</div>
                     <div class="stat-value" id="count">0</div>
                 </div>
-                <div class="stat" style="background: #dbeafe;">
-                    <div class="stat-label">Button Presses</div>
-                    <div class="stat-value" id="buttonCount" style="color: #1e40af;">0</div>
-                </div>
-                <div class="stat pass-stat">
-                    <div class="stat-label">Pass</div>
-                    <div class="stat-value" id="passCount">0</div>
-                </div>
-                <div class="stat ng-stat">
-                    <div class="stat-label">+NG</div>
-                    <div class="stat-value" id="ngPlus">0</div>
-                </div>
-                <div class="stat ng-stat">
-                    <div class="stat-label">-NG</div>
-                    <div class="stat-value" id="ngMinus">0</div>
-                </div>
+            
             </div>
             
             <div class="controls">
@@ -631,7 +475,7 @@ TO DO
                                 <th>No.</th>
                                 <th>Time</th>
                                 <th>Value (mm)</th>
-                                <th>Err</th>
+                       
                                 <th>Type</th>
                             </tr>
                         </thead>
@@ -654,7 +498,7 @@ TO DO
                             <tr>
                                 <th>Time</th>
                                 <th>Value (mm)</th>
-                                <th>Status</th>
+                           
                             </tr>
                         </thead>
                         <tbody id="continuousLogBody"></tbody>
@@ -677,13 +521,9 @@ TO DO
             min: null,
             max: null,
             count: 0,
-            buttonCount: 0,
-            ngPlus: 0,
-            ngMinus: 0,
-            passCount: 0,
-            sum: 0.0
+
         };
-        let tolerance = {usl: null, lsl: null, std: null};
+
         let importantData = [];
         let continuousData = [];
         
@@ -708,7 +548,7 @@ TO DO
             try {
                 setStatus('checking', 'Requesting port...');
                 
-                // Request port with 9600 baud filter
+                // Request  9600 
                 port = await navigator.serial.requestPort();
                 
                 // Open port with 9600 baud, 8N1
@@ -849,88 +689,45 @@ TO DO
                 gaugeData.max = zeroedValue;
             }
             
-            // Check tolerance
-            const status = checkTolerance(zeroedValue);
-            if (status === 'over') {
-                gaugeData.ngPlus++;
-            } else if (status === 'under') {
-                gaugeData.ngMinus++;
-            } else if (status === 'pass') {
-                gaugeData.passCount++;
-            }
+           
             
             // Check button press (0x0A in byte 10)
             const isButton = (packet[10] === 0x0A);
-            if (isButton) {
-                gaugeData.buttonCount++;
-            }
+      
             
             // Update display
-            updateDisplay(zeroedValue, status, isButton);
+            updateDisplay(zeroedValue, isButton);
             
             // Log data
             const timestamp = new Date().toLocaleTimeString('en-GB', {hour12: false}) + '.' + 
                               String(new Date().getMilliseconds()).padStart(3, '0');
             
-            addToContinuousLog(timestamp, zeroedValue, status);
+            addToContinuousLog(timestamp, zeroedValue);
             
             if (isButton) {
-                addToImportantLog(timestamp, zeroedValue, 'Button', status);
+                addToImportantLog(timestamp, zeroedValue, 'Button');
             }
         }
         
-        function updateDisplay(value, status, isButton) {
+        function updateDisplay(value, isButton) {
             const valueEl = document.getElementById('value');
-            const statusBadge = document.getElementById('statusBadge');
+            // REMOVED: statusBadge
+            // const statusBadge = document.getElementById('statusBadge');
             
             valueEl.innerHTML = value.toFixed(3) + '<span class="value-unit">mm</span>';
             
-            // Update status
-            valueEl.className = 'value-display';
-            statusBadge.className = 'status-badge';
             
-            if (status === 'pass') {
-                valueEl.classList.add('pass');
-                statusBadge.classList.add('pass');
-                statusBadge.textContent = 'PASS';
-            } else if (status === 'over') {
-                valueEl.classList.add('fail');
-                statusBadge.classList.add('fail');
-                statusBadge.textContent = 'FAIL (+NG)';
-            } else if (status === 'under') {
-                valueEl.classList.add('fail');
-                statusBadge.classList.add('fail');
-                statusBadge.textContent = 'FAIL (-NG)';
-            } else {
-                valueEl.classList.add('neutral');
-                statusBadge.classList.add('neutral');
-                statusBadge.textContent = 'No Tolerance Set';
-            }
             
             if (isButton) {
                 valueEl.classList.add('button-flash');
                 setTimeout(() => valueEl.classList.remove('button-flash'), 300);
             }
             
-            // Update tolerance marker
-            if (tolerance.usl !== null && tolerance.lsl !== null) {
-                const range = tolerance.usl - tolerance.lsl;
-                const position = ((value - tolerance.lsl) / range) * 100;
-                let marker = document.querySelector('.tolerance-marker');
-                if (!marker) {
-                    marker = document.createElement('div');
-                    marker.className = 'tolerance-marker';
-                    document.getElementById('toleranceBar').appendChild(marker);
-                }
-                marker.style.left = Math.max(0, Math.min(100, position)) + '%';
-            }
+           
             
             // Update stats
             document.getElementById('count').textContent = gaugeData.count;
-            document.getElementById('buttonCount').textContent = gaugeData.buttonCount;
-            document.getElementById('passCount').textContent = gaugeData.passCount;
-            document.getElementById('ngPlus').textContent = gaugeData.ngPlus;
-            document.getElementById('ngMinus').textContent = gaugeData.ngMinus;
+           
             
             if (gaugeData.min !== null) {
                 document.getElementById('min').textContent = gaugeData.min.toFixed(3);
@@ -944,11 +741,7 @@ TO DO
                 document.getElementById('avg').textContent = avg.toFixed(3);
             }
             
-            const range = (gaugeData.min !== null && gaugeData.max !== null) ? 
-                          (gaugeData.max - gaugeData.min) : null;
-            if (range !== null) {
-                document.getElementById('range').textContent = range.toFixed(3);
-            }
+          
         }
         
         function setStatus(type, text) {
@@ -957,40 +750,12 @@ TO DO
             status.querySelector('span').textContent = text;
         }
         
-        function updateTolerance() {
-            const usl = parseFloat(document.getElementById('uslInput').value);
-            const lsl = parseFloat(document.getElementById('lslInput').value);
-            const std = parseFloat(document.getElementById('stdInput').value);
-            
-            tolerance.usl = isNaN(usl) ? null : usl;
-            tolerance.lsl = isNaN(lsl) ? null : lsl;
-            tolerance.std = isNaN(std) ? null : std;
-            
-            document.getElementById('uslLabel').textContent = tolerance.usl !== null ? tolerance.usl.toFixed(3) : 'USL';
-            document.getElementById('lslLabel').textContent = tolerance.lsl !== null ? tolerance.lsl.toFixed(3) : 'LSL';
-            document.getElementById('stdLabel').textContent = tolerance.std !== null ? tolerance.std.toFixed(3) : 'STD';
-        }
+       
         
-        function checkTolerance(value) {
-            if (tolerance.usl !== null && value > tolerance.usl) return 'over';
-            if (tolerance.lsl !== null && value < tolerance.lsl) return 'under';
-            if (tolerance.usl !== null || tolerance.lsl !== null) return 'pass';
-            return 'none';
-        }
-        
-        function getErrBadge(status) {
-            if (status === 'over') return '<span class="err-badge plus">+Err</span>';
-            if (status === 'under') return '<span class="err-badge minus">-Err</span>';
-            if (status === 'pass') return '<span class="err-badge pass">Pass</span>';
-            return '';
-        }
-        
-        function addToImportantLog(time, value, type, status) {
+        function addToImportantLog(time, value, type) {
             const tbody = document.getElementById('importantLogBody');
             const row = tbody.insertRow(0);
             
-            const rowClass = status === 'pass' ? 'pass-row' : (status !== 'none' ? 'fail-row' : '');
-            row.className = rowClass;
             
             const typeClass = type === 'Button' ? 'type-button' : 'type-manual';
             
@@ -998,16 +763,16 @@ TO DO
             row.insertCell(0).textContent = count;
             row.insertCell(1).textContent = time;
             row.insertCell(2).textContent = value.toFixed(3);
-            row.insertCell(3).innerHTML = getErrBadge(status);
-            const typeCell = row.insertCell(4);
+          
+            const typeCell = row.insertCell(3); // Changed from 4 to 3
             typeCell.textContent = type;
             typeCell.className = typeClass;
             
-            importantData.unshift({time, value, type, status});
+            importantData.unshift({time, value, type});
             document.getElementById('importantCount').textContent = importantData.length;
         }
         
-        function addToContinuousLog(time, value, status) {
+        function addToContinuousLog(time, value) {
             const tbody = document.getElementById('continuousLogBody');
             
             if (tbody.rows.length > 100) {
@@ -1015,14 +780,13 @@ TO DO
             }
             
             const row = tbody.insertRow(0);
-            const rowClass = status === 'pass' ? 'pass-row' : (status !== 'none' ? 'fail-row' : '');
-            row.className = rowClass;
+           
             
             row.insertCell(0).textContent = time;
             row.insertCell(1).textContent = value.toFixed(3);
-            row.insertCell(2).innerHTML = getErrBadge(status);
+           
             
-            continuousData.push({time, value, status});
+            continuousData.push({time, value});
         }
         
         function zero() {
@@ -1034,33 +798,24 @@ TO DO
             const timestamp = new Date().toLocaleTimeString('en-GB', {hour12: false}) + '.' + 
                               String(new Date().getMilliseconds()).padStart(3, '0');
             const value = gaugeData.currentValue;
-            const status = checkTolerance(value);
+           
             
-            addToImportantLog(timestamp, value, 'Manual', status);
-            console.log('Manual capture:', value.toFixed(3), 'mm', '[' + status + ']');
+            addToImportantLog(timestamp, value, 'Manual');
+            console.log('Manual capture:', value.toFixed(3), 'mm');
         }
         
         function resetStats() {
             if (confirm('Reset all statistics? This will not delete captured data.')) {
                 gaugeData.count = 0;
-                gaugeData.buttonCount = 0;
+                
                 gaugeData.min = null;
                 gaugeData.max = null;
-                gaugeData.ngPlus = 0;
-                gaugeData.ngMinus = 0;
-                gaugeData.passCount = 0;
                 gaugeData.sum = 0.0;
                 
                 document.getElementById('count').textContent = '0';
-                document.getElementById('buttonCount').textContent = '0';
-                document.getElementById('passCount').textContent = '0';
-                document.getElementById('ngPlus').textContent = '0';
-                document.getElementById('ngMinus').textContent = '0';
                 document.getElementById('min').textContent = '---';
                 document.getElementById('max').textContent = '---';
-                document.getElementById('avg').textContent = '---';
-                document.getElementById('range').textContent = '---';
-                
+                document.getElementById('avg').textContent = '---';                
                 console.log('Statistics reset');
             }
         }
@@ -1077,15 +832,10 @@ TO DO
                 filename += '.csv';
             }
             
-            let csv = 'No.,Timestamp,Value (mm),Status,Type\n';
-            importantData.slice().reverse().forEach((row, idx) => {
-                let statusText = row.status;
-                if (statusText === 'over') statusText = '+Err';
-                else if (statusText === 'under') statusText = '-Err';
-                else if (statusText === 'pass') statusText = 'Pass';
-                else statusText = '';
-                
-                csv += `${idx + 1},${row.time},${row.value.toFixed(3)},${statusText},${row.type}\n`;
+            
+            let csv = 'No.,Timestamp,Value (mm),Type\n';
+            importantData.slice().reverse().forEach((row, idx) => {                
+                csv += `${idx + 1},${row.time},${row.value.toFixed(3)},${row.type}\n`;
             });
             
             downloadCSV(csv, filename);
@@ -1103,15 +853,10 @@ TO DO
                 filename += '.csv';
             }
             
-            let csv = 'Timestamp,Value (mm),Status\n';
-            continuousData.forEach(row => {
-                let statusText = row.status;
-                if (statusText === 'over') statusText = '+Err';
-                else if (statusText === 'under') statusText = '-Err';
-                else if (statusText === 'pass') statusText = 'Pass';
-                else statusText = '';
-                
-                csv += `${row.time},${row.value.toFixed(3)},${statusText}\n`;
+          
+            let csv = 'Timestamp,Value (mm)\n';
+            continuousData.forEach(row => {                
+                csv += `${row.time},${row.value.toFixed(3)}\n`;
             });
             
             downloadCSV(csv, filename);
